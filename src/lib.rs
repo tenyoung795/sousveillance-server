@@ -6,14 +6,12 @@ extern crate quickcheck;
 #[macro_use]
 mod macros;
 
-pub mod codec;
 pub mod message;
 pub mod server;
 pub mod session;
 pub mod stream;
 mod util;
 
-pub use codec::Codec;
 pub use message::Message;
 pub use session::Session;
 pub use server::Server;
