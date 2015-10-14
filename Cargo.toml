@@ -1,0 +1,11 @@
+[package]
+name = "sousveillance-server"
+version = "0.1.0"
+authors = ["Ten-Young Guh <tenyoung795@gmail.com>"]
+
+[dependencies]
+byteorder = "0.3"
+ffmpeg = { git = "https://github.com/meh/rust-ffmpeg.git" }
+
+[dev-dependencies]
+quickcheck = "0.2"
