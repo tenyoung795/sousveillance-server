@@ -14,15 +14,14 @@ impl<'a, 'b, T: 'a + 'b, S: 'a + Server<T>, I: 'a + Iterator<Item=Message<'b, T>
     type Item = server::ConsumeResult<
         S::AuthErr, <S::Stream as Stream<T>>::PushErr>;
     fn next(&mut self) -> Option<Self::Item> {
-        self.messages.next()
-            .map(|msg| {
-                let id = msg.header.id;
-                let result = self.server.consume(msg);
-                if result.is_ok() {
-                    self.ids.insert(id.to_owned());
-                }
-                result
-            })
+        self.messages.next().map(|msg| {
+            let id = msg.header.id;
+            let result = self.server.consume(msg);
+            if result.is_ok() {
+                self.ids.insert(id.to_owned());
+            }
+            result
+        })
     }
 }
 
@@ -45,7 +44,8 @@ impl<'a, 'b, T: 'a + 'b, S: 'a + Server<T>, I: 'a + Iterator<Item=Message<'b, T>
         // }
         // let ids = session.ids_to_extract();
         // ```
-        for _ in &mut self { }
+        for _ in &mut self {
+        }
         self.ids
     }
 }
@@ -62,8 +62,7 @@ mod tests {
     #[test]
     fn next_none() {
         let empty = iter::empty::<Message<'static, &'static [u8]>>();
-        assert!(
-            Session::new(&mut server::mocks::CannotAuth, empty).next().is_none());
+        assert!(Session::new(&mut server::mocks::CannotAuth, empty).next().is_none());
     }
 
     quickcheck_test! {

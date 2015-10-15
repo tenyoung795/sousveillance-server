@@ -12,7 +12,7 @@ macro_rules! matches {
 #[cfg(test)]
 #[macro_export]
 macro_rules! quickcheck_test {
-    ($test_name:ident ($($param_name:ident: $param_type:ty),+; $return_type:ty) 
+    ($test_name:ident ($($param_name:ident: $param_type:ty),+; $return_type:ty)
      $body:block) => {
         #[test]
         fn $test_name() {

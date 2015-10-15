@@ -3,7 +3,7 @@ pub enum Void { }
 
 #[cfg(test)]
 pub mod testing {
-    use ::byteorder::{BigEndian, ByteOrder};
+    use byteorder::{BigEndian, ByteOrder};
 
     pub trait ToBytes {
         type Bytes;

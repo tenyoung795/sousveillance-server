@@ -3,7 +3,7 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
-use ::byteorder::{BigEndian, ByteOrder};
+use byteorder::{BigEndian, ByteOrder};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Part {
@@ -50,8 +50,11 @@ pub struct Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        write!(f, "missing {} of {} bytes; {} bytes remaining",
-               self.part.description(), self.part.size(), self.remaining)
+        write!(f,
+               "missing {} of {} bytes; {} bytes remaining",
+               self.part.description(),
+               self.part.size(),
+               self.remaining)
     }
 }
 
@@ -71,8 +74,10 @@ impl<'a> Header<'a> {
     pub fn parse(mut bytes: &'a [u8]) -> Result<(Self, &'a [u8]), Error> {
         let mut remaining = bytes.len();
         let mut check = |part: Part| {
-            remaining = try!(remaining.checked_sub(part.size()).ok_or(
-                Error { remaining: remaining, part: part }));
+            remaining = try!(remaining.checked_sub(part.size()).ok_or(Error {
+                remaining: remaining,
+                part: part,
+            }));
             Ok(())
         };
 
@@ -116,9 +121,11 @@ mod tests {
 
     #[test]
     fn none_of_token_size() {
-        assert_eq!(
-            Err(Error { remaining: 0, part: Part::TokenSize }),
-            Header::parse(&[]));
+        assert_eq!(Err(Error {
+                       remaining: 0,
+                       part: Part::TokenSize,
+                   }),
+                   Header::parse(&[]));
     }
 
     quickcheck_test! {
@@ -191,7 +198,7 @@ mod tests {
             part: Part::IDSize,
         })
     }}
-    
+
     quickcheck_test! {
     two_of_id_size(token: Vec<u8>, partial_id_size: (u8, u8); bool) {
         let buf: Vec<_> = (token.len() as u32)

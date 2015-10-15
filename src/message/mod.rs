@@ -65,7 +65,12 @@ impl<'a, P: Payload<'a>> Message<'a, P> {
     pub fn parse(bytes: &'a [u8]) -> Result<Self, Error<P::Err>> {
         let (header, payload_bytes) = try!(Header::parse(bytes));
         P::parse(payload_bytes)
-            .map(|payload| Message { header: header, payload: payload })
+            .map(|payload| {
+                Message {
+                    header: header,
+                    payload: payload,
+                }
+            })
             .map_err(Error::PayloadError)
     }
 }

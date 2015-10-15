@@ -10,24 +10,24 @@ pub trait Stream<T> : Default {
     fn extract(self) -> Result<Self::Extract, (Self, Self::ExtractErr)>;
 }
 
+pub type FoundResult<T, S> = Result<
+    <S as Stream<T>>::Extract, <S as Stream<T>>::ExtractErr>;
 pub trait Finder<T> {
     type Stream: Stream<T>;
-    fn extract(&mut self, &[u8])
-        -> Option<Result<<Self::Stream as Stream<T>>::Extract,
-                         <Self::Stream as Stream<T>>::ExtractErr>>;
+    fn extract(&mut self, &[u8]) -> Option<FoundResult<T, Self::Stream>>;
 }
 
 impl<T, V: Stream<T>> Finder<T> for HashMap<Vec<u8>, V> {
     type Stream = V;
-    fn extract(&mut self, key: &[u8])
-        -> Option<Result<<Self::Stream as Stream<T>>::Extract,
-                         <Self::Stream as Stream<T>>::ExtractErr>> {
+    fn extract(&mut self, key: &[u8]) -> Option<FoundResult<T, Self::Stream>> {
         self.remove(key)
             .map(V::extract)
-            .map(|result| result.map_err(|(stream, err)| {
-                self.insert(key.to_owned(), stream);
-                err
-            }))
+            .map(|result| {
+                result.map_err(|(stream, err)| {
+                    self.insert(key.to_owned(), stream);
+                    err
+                })
+            })
     }
 }
 
@@ -46,8 +46,7 @@ pub mod mocks {
     }
     impl<T> Stream<T> for Impossible {
         type PushErr = ::Void;
-        fn push(&mut self, _: Duration, _: T)
-            -> Result<(), Self::PushErr> {
+        fn push(&mut self, _: Duration, _: T) -> Result<(), Self::PushErr> {
             match *self { }
         }
 
@@ -62,8 +61,7 @@ pub mod mocks {
     pub struct Broken;
     impl<T> Stream<T> for Broken {
         type PushErr = ();
-        fn push(&mut self, _: Duration, _: T)
-            -> Result<(), Self::PushErr> {
+        fn push(&mut self, _: Duration, _: T) -> Result<(), Self::PushErr> {
             Err(())
         }
 
@@ -78,8 +76,7 @@ pub mod mocks {
     pub struct Ok;
     impl<T> Stream<T> for Ok {
         type PushErr = ::Void;
-        fn push(&mut self, _: Duration, _: T)
-            -> Result<(), Self::PushErr> {
+        fn push(&mut self, _: Duration, _: T) -> Result<(), Self::PushErr> {
             Result::Ok(())
         }
 

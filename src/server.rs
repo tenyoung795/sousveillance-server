@@ -92,15 +92,15 @@ pub trait Server<T> {
     type AuthErr;
     fn auth(&mut self, token: &[u8]) -> AuthResult<Self::Stream, Self::AuthErr>;
 
-    fn consume(&mut self, msg: Message<T>)
-        -> ConsumeResult<Self::AuthErr, <Self::Stream as Stream<T>>::PushErr> {
+    fn consume(&mut self,
+               msg: Message<T>)
+               -> ConsumeResult<Self::AuthErr, <Self::Stream as Stream<T>>::PushErr> {
         self.auth(msg.header.token)
             .map_err(Into::into)
-            .and_then(|finder|
-                finder.get_mut(msg.header.id).ok_or(ConsumeError::MissingID))
-            .and_then(move |stream|
-                stream.push(msg.header.timestamp, msg.payload)
-                    .map_err(ConsumeError::PushError))
+            .and_then(|finder| finder.get_mut(msg.header.id).ok_or(ConsumeError::MissingID))
+            .and_then(move |stream| {
+                stream.push(msg.header.timestamp, msg.payload).map_err(ConsumeError::PushError)
+            })
     }
 }
 
