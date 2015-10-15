@@ -20,21 +20,21 @@ impl<'a> Payload<'a> for &'a [u8] {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error<E> {
-    HeaderError(header::Error),
-    PayloadError(E),
+    Header(header::Error),
+    Payload(E),
 }
 
 impl<E> From<header::Error> for Error<E> {
     fn from(err: header::Error) -> Self {
-        Error::HeaderError(err)
+        Error::Header(err)
     }
 }
 
 impl<E: Display> Display for Error<E> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
         match *self {
-            Error::HeaderError(ref err) => err.fmt(f),
-            Error::PayloadError(ref err) => err.fmt(f),
+            Error::Header(ref err) => err.fmt(f),
+            Error::Payload(ref err) => err.fmt(f),
         }
     }
 }
@@ -42,15 +42,15 @@ impl<E: Display> Display for Error<E> {
 impl<E: error::Error> error::Error for Error<E> {
     fn description(&self) -> &str {
         match *self {
-            Error::HeaderError(ref err) => err.description(),
-            Error::PayloadError(ref err) => err.description(),
+            Error::Header(ref err) => err.description(),
+            Error::Payload(ref err) => err.description(),
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         Some(match *self {
-            Error::HeaderError(ref err) => err,
-            Error::PayloadError(ref err) => err,
+            Error::Header(ref err) => err,
+            Error::Payload(ref err) => err,
         })
     }
 }
@@ -71,7 +71,7 @@ impl<'a, P: Payload<'a>> Message<'a, P> {
                     payload: payload,
                 }
             })
-            .map_err(Error::PayloadError)
+            .map_err(Error::Payload)
     }
 }
 
@@ -104,7 +104,7 @@ mod tests {
         } else {
             type M<'a> = Message<'a, &'a [u8]>;
             TestResult::from_bool(
-                matches!(M::parse(&buf[range]), Err(Error::HeaderError(_))))
+                matches!(M::parse(&buf[range]), Err(Error::Header(_))))
         }
     }}
 
@@ -129,7 +129,7 @@ mod tests {
             .chain(payload)
             .collect();
 
-        matches!(M::parse(&buf), Err(Error::PayloadError(_)))
+        matches!(M::parse(&buf), Err(Error::Payload(_)))
     }}
 
     quickcheck_test! {

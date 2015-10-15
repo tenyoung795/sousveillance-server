@@ -44,23 +44,23 @@ impl<E: error::Error> error::Error for AuthError<E> {
 
 #[derive(Debug)]
 pub enum ConsumeError<A, P> {
-    AuthError(AuthError<A>),
+    Auth(AuthError<A>),
     MissingID,
-    PushError(P),
+    Push(P),
 }
 
 impl<A, P> From<AuthError<A>> for ConsumeError<A, P> {
     fn from(err: AuthError<A>) -> Self {
-        ConsumeError::AuthError(err)
+        ConsumeError::Auth(err)
     }
 }
 
 impl<A: Display, P: Display> Display for ConsumeError<A, P> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
         match *self {
-            ConsumeError::AuthError(ref e) => e.fmt(f),
+            ConsumeError::Auth(ref e) => e.fmt(f),
             ConsumeError::MissingID => f.write_str("missing ID"),
-            ConsumeError::PushError(ref e) => e.fmt(f),
+            ConsumeError::Push(ref e) => e.fmt(f),
         }
     }
 }
@@ -68,17 +68,17 @@ impl<A: Display, P: Display> Display for ConsumeError<A, P> {
 impl<A: error::Error, P: error::Error> error::Error for ConsumeError<A, P> {
     fn description(&self) -> &str {
         match *self {
-            ConsumeError::AuthError(ref e) => e.description(),
+            ConsumeError::Auth(ref e) => e.description(),
             ConsumeError::MissingID => "missing ID",
-            ConsumeError::PushError(ref e) => e.description(),
+            ConsumeError::Push(ref e) => e.description(),
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
-            ConsumeError::AuthError(ref e) => Some(e),
+            ConsumeError::Auth(ref e) => Some(e),
             ConsumeError::MissingID => None,
-            ConsumeError::PushError(ref e) => Some(e),
+            ConsumeError::Push(ref e) => Some(e),
         }
     }
 }
@@ -99,7 +99,7 @@ pub trait Server<T> {
             .map_err(Into::into)
             .and_then(|finder| finder.get_mut(msg.header.id).ok_or(ConsumeError::MissingID))
             .and_then(move |stream| {
-                stream.push(msg.header.timestamp, msg.payload).map_err(ConsumeError::PushError)
+                stream.push(msg.header.timestamp, msg.payload).map_err(ConsumeError::Push)
             })
     }
 }
@@ -157,7 +157,7 @@ mod tests {
             payload: &*payload,
         };
         matches!(mocks::RefuseToAuth.consume(msg),
-                 Err(ConsumeError::AuthError(AuthError::InvalidToken)))
+                 Err(ConsumeError::Auth(AuthError::InvalidToken)))
     }}
 
     quickcheck_test! {
@@ -172,7 +172,7 @@ mod tests {
             payload: &*payload,
         };
         matches!(mocks::CannotAuth.consume(msg),
-                 Err(ConsumeError::AuthError(AuthError::Other(_))))
+                 Err(ConsumeError::Auth(AuthError::Other(_))))
     }}
 
     quickcheck_test! {
@@ -203,7 +203,7 @@ mod tests {
             },
             payload: &*payload,
         };
-        matches!(mocks::Ok(finder).consume(msg), Err(ConsumeError::PushError(_)))
+        matches!(mocks::Ok(finder).consume(msg), Err(ConsumeError::Push(_)))
     }}
 
     quickcheck_test! {
