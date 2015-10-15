@@ -32,37 +32,83 @@ impl<T, V: Stream<T>> Finder<T> for HashMap<Vec<u8>, V> {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::collections::{HashMap, HashSet};
+pub mod mocks {
     use std::time::Duration;
-
-    use ::quickcheck::*;
 
     use super::*;
 
-    #[derive(Default)]
-    struct S;
-    impl Stream<::Void> for S {
+    #[allow(dead_code)]
+    pub enum Impossible { }
+    impl Default for Impossible {
+        fn default() -> Self {
+            unreachable!()
+        }
+    }
+    impl<T> Stream<T> for Impossible {
         type PushErr = ::Void;
-        fn push(&mut self, _: Duration, _: ::Void) -> Result<(), Self::PushErr> {
-            Ok(())
+        fn push(&mut self, _: Duration, _: T)
+            -> Result<(), Self::PushErr> {
+            match *self { }
+        }
+
+        type Extract = ::Void;
+        type ExtractErr = ::Void;
+        fn extract(self) -> Result<Self::Extract, (Self, Self::ExtractErr)> {
+            match self { }
+        }
+    }
+
+    #[derive(Default)]
+    pub struct Broken;
+    impl<T> Stream<T> for Broken {
+        type PushErr = ();
+        fn push(&mut self, _: Duration, _: T)
+            -> Result<(), Self::PushErr> {
+            Err(())
+        }
+
+        type Extract = ::Void;
+        type ExtractErr = ();
+        fn extract(self) -> Result<Self::Extract, (Self, Self::ExtractErr)> {
+            Err((self, ()))
+        }
+    }
+
+    #[derive(Default)]
+    pub struct Ok;
+    impl<T> Stream<T> for Ok {
+        type PushErr = ::Void;
+        fn push(&mut self, _: Duration, _: T)
+            -> Result<(), Self::PushErr> {
+            Result::Ok(())
         }
 
         type Extract = ();
         type ExtractErr = ::Void;
         fn extract(self) -> Result<Self::Extract, (Self, Self::ExtractErr)> {
-            Ok(())
+            Result::Ok(())
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use ::quickcheck::*;
+
+    use super::*;
 
     quickcheck_test! {
-    missing_id(ids: HashSet<Vec<u8>>; TestResult) {
-        let mut iter = ids.into_iter();
-        if let Some(missing_id) = iter.next() {
-            let mut streams: HashMap<_, _> = iter.map(|id| (id, S)).collect();
-            TestResult::from_bool(streams.extract(&missing_id).is_none())
-        } else {
+    missing_id(missing_id: Vec<u8>, present_ids: HashSet<Vec<u8>>; TestResult) {
+        if present_ids.contains(&missing_id) {
             TestResult::discard()
+        } else {
+            let mut streams: HashMap<_, _> = present_ids.into_iter()
+                .map(|id| (id, mocks::Ok))
+                .collect();
+            let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Ok>;
+            TestResult::from_bool(finder.extract(&missing_id).is_none())
         }
     }}
 
@@ -71,24 +117,27 @@ mod tests {
         let mut ids = other_ids;
         ids.insert(id_to_lookup.clone());
 
-        #[derive(Default)]
-        struct S;
-        impl Stream<::Void> for S {
-            type PushErr = ::Void;
-            fn push(&mut self, _: Duration, _: ::Void)
-                -> Result<(), Self::PushErr> {
-                Ok(())
-            }
+        let mut streams: HashMap<_, _> = ids.into_iter()
+            .map(|id| (id, mocks::Broken))
+            .collect();
+        let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Broken>;
+        matches!(finder.extract(&id_to_lookup), Some(Err(_)))
+    }}
 
-            type Extract = ::Void;
-            type ExtractErr = ();
-            fn extract(self) -> Result<Self::Extract, (Self, Self::ExtractErr)> {
-                Err((self, ()))
-            }
+    quickcheck_test! {
+    extract_error_reinserts(id_to_lookup: Vec<u8>, other_ids: HashSet<Vec<u8>>;
+                            bool) {
+        let mut ids = other_ids;
+        ids.insert(id_to_lookup.clone());
+
+        let mut streams: HashMap<_, _> = ids.into_iter()
+            .map(|id| (id, mocks::Broken))
+            .collect();
+        {
+            let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Broken>;
+            finder.extract(&id_to_lookup);
         }
-        let mut streams: HashMap<_, _> = ids.into_iter().map(|id| (id, S)).collect();
-        matches!(streams.extract(&id_to_lookup), Some(Err(_)))
-            && matches!(streams.get(&id_to_lookup), Some(&S))
+        matches!(streams.get(&id_to_lookup), Some(&mocks::Broken))
     }}
 
     quickcheck_test! {
@@ -96,8 +145,25 @@ mod tests {
         let mut ids = other_ids;
         ids.insert(id_to_lookup.clone());
 
-        let mut streams: HashMap<_, _> = ids.into_iter().map(|id| (id, S)).collect();
-        matches!(streams.extract(&id_to_lookup), Some(Ok(_)))
-            && streams.get(&id_to_lookup).is_none()
+        let mut streams: HashMap<_, _> = ids.into_iter()
+            .map(|id| (id, mocks::Ok))
+            .collect();
+        let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Ok>;
+        matches!(finder.extract(&id_to_lookup), Some(Ok(_)))
+    }}
+
+    quickcheck_test! {
+    extract_ok_removes(id_to_lookup: Vec<u8>, other_ids: HashSet<Vec<u8>>; bool) {
+        let mut ids = other_ids;
+        ids.insert(id_to_lookup.clone());
+
+        let mut streams: HashMap<_, _> = ids.into_iter()
+            .map(|id| (id, mocks::Ok))
+            .collect();
+        {
+            let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Ok>;
+            finder.extract(&id_to_lookup);
+        }
+        streams.get(&id_to_lookup).is_none()
     }}
 }

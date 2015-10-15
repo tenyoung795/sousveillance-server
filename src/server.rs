@@ -105,57 +105,49 @@ pub trait Server<T> {
 }
 
 #[cfg(test)]
+pub mod mocks {
+    use super::*;
+    use super::super::{stream, Stream};
+
+    pub struct RefuseToAuth;
+    impl<T> Server<T> for RefuseToAuth {
+        type Stream = stream::mocks::Impossible;
+        type AuthErr = ::Void;
+        fn auth(&mut self, _: &[u8]) -> AuthResult<Self::Stream, Self::AuthErr> {
+            Err(AuthError::InvalidToken)
+        }
+    }
+
+    pub struct CannotAuth;
+    impl<T> Server<T> for CannotAuth {
+        type Stream = stream::mocks::Impossible;
+        type AuthErr = ();
+        fn auth(&mut self, _: &[u8]) -> AuthResult<Self::Stream, Self::AuthErr> {
+            Err(AuthError::Other(()))
+        }
+    }
+
+    pub struct Ok<S>(pub Finder<S>);
+    impl<T, S: Stream<T>> Server<T> for Ok<S> {
+        type Stream = S;
+        type AuthErr = ::Void;
+        fn auth(&mut self, _: &[u8]) -> AuthResult<Self::Stream, Self::AuthErr> {
+            Result::Ok(&mut self.0)
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use std::iter;
     use std::time::Duration;
 
     use super::*;
-    use super::super::{message, Message, Stream};
-
-    #[allow(dead_code)]
-    enum ImpossibleStream { }
-    impl Default for ImpossibleStream {
-        fn default() -> Self {
-            unreachable!()
-        }
-    }
-    impl<'a> Stream<&'a [u8]> for ImpossibleStream {
-        type PushErr = ::Void;
-        fn push(&mut self, _: Duration, _: &'a [u8])
-            -> Result<(), Self::PushErr> {
-            match *self { }
-        }
-
-        type Extract = ::Void;
-        type ExtractErr = ::Void;
-        fn extract(self) -> Result<Self::Extract, (Self, Self::ExtractErr)> {
-            match self { }
-        }
-    }
-
-    struct OkServer<S>(Finder<S>);
-    impl<'a, S: Stream<&'a [u8]>> Server<&'a [u8]> for OkServer<S> {
-        type Stream = S;
-        type AuthErr = ::Void;
-        fn auth(&mut self, _: &[u8])
-            -> Result<&mut Finder<Self::Stream>, AuthError<Self::AuthErr>> {
-            Ok(&mut self.0)
-        }
-    }
+    use super::super::{message, stream, Message};
 
     quickcheck_test! {
     missing_token(token: Vec<u8>, id: Vec<u8>, millis: u64, payload: Vec<u8>;
                   bool) {
-        struct S;
-        impl<'a> Server<&'a [u8]> for S {
-            type Stream = ImpossibleStream;
-            type AuthErr = ::Void;
-            fn auth(&mut self, _: &[u8])
-                -> AuthResult<Self::Stream, Self::AuthErr> {
-                Err(AuthError::InvalidToken)
-            }
-        }
-
         let msg = Message {
             header: message::Header {
                 token: &token,
@@ -164,23 +156,13 @@ mod tests {
             },
             payload: &*payload,
         };
-        matches!(S.consume(msg),
+        matches!(mocks::RefuseToAuth.consume(msg),
                  Err(ConsumeError::AuthError(AuthError::InvalidToken)))
     }}
 
     quickcheck_test! {
     other_auth_error(token: Vec<u8>, id: Vec<u8>, millis: u64, payload: Vec<u8>;
                      bool) {
-        struct S;
-        impl<'a> Server<&'a [u8]> for S {
-            type Stream = ImpossibleStream;
-            type AuthErr = ();
-            fn auth(&mut self, _: &[u8])
-                -> AuthResult<Self::Stream, Self::AuthErr> {
-                Err(AuthError::Other(()))
-            }
-        }
-
         let msg = Message {
             header: message::Header {
                 token: &token,
@@ -189,7 +171,7 @@ mod tests {
             },
             payload: &*payload,
         };
-        matches!(S.consume(msg),
+        matches!(mocks::CannotAuth.consume(msg),
                  Err(ConsumeError::AuthError(AuthError::Other(_))))
     }}
 
@@ -204,31 +186,15 @@ mod tests {
             },
             payload: &*payload,
         };
-        matches!(OkServer::<ImpossibleStream>(Finder::new()).consume(msg),
-                 Err(ConsumeError::MissingID))
+        let finder: Finder<stream::mocks::Impossible> = Finder::new();
+        matches!(mocks::Ok(finder).consume(msg), Err(ConsumeError::MissingID))
     }}
 
     quickcheck_test! {
     push_error(token: Vec<u8>, id: Vec<u8>, millis: u64, payload: Vec<u8>;
                bool) {
-        #[derive(Default)]
-        struct BrokenStream;
-        impl<'a> Stream<&'a [u8]> for BrokenStream {
-            type PushErr = ();
-            fn push(&mut self, _: Duration, _: &'a [u8])
-                -> Result<(), Self::PushErr> {
-                Err(())
-            }
-
-            type Extract = ::Void;
-            type ExtractErr = ::Void;
-            fn extract(self) -> Result<Self::Extract, (Self, Self::ExtractErr)> {
-                unreachable!()
-            }
-        }
-
-        let finder: Finder<BrokenStream> = iter::once(
-            (id.clone(), BrokenStream)).collect();
+        let finder: Finder<_> = iter::once(
+            (id.clone(), stream::mocks::Broken)).collect();
         let msg = Message {
             header: message::Header {
                 token: &token,
@@ -237,30 +203,14 @@ mod tests {
             },
             payload: &*payload,
         };
-        matches!(OkServer(finder).consume(msg), Err(ConsumeError::PushError(_)))
+        matches!(mocks::Ok(finder).consume(msg), Err(ConsumeError::PushError(_)))
     }}
 
     quickcheck_test! {
     ok_consume(token: Vec<u8>, id: Vec<u8>, millis: u64, payload: Vec<u8>;
                bool) {
-        #[derive(Default)]
-        struct OkStream;
-        impl<'a> Stream<&'a [u8]> for OkStream {
-            type PushErr = ::Void;
-            fn push(&mut self, _: Duration, _: &'a [u8])
-                -> Result<(), Self::PushErr> {
-                Ok(())
-            }
-
-            type Extract = ::Void;
-            type ExtractErr = ::Void;
-            fn extract(self) -> Result<Self::Extract, (Self, Self::ExtractErr)> {
-                unreachable!()
-            }
-        }
-
-        let finder: Finder<OkStream> = iter::once(
-            (id.clone(), OkStream)).collect();
+        let finder: Finder<_> = iter::once(
+            (id.clone(), stream::mocks::Ok)).collect();
         let msg = Message {
             header: message::Header {
                 token: &token,
@@ -269,6 +219,6 @@ mod tests {
             },
             payload: &*payload,
         };
-        OkServer(finder).consume(msg).is_ok()
+        mocks::Ok(finder).consume(msg).is_ok()
     }}
 }
