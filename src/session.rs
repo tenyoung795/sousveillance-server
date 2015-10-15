@@ -17,7 +17,8 @@ impl<'a, 'b, T: 'a + 'b, S: 'a + Server<T>, I: 'a + Iterator<Item=Message<'b, T>
         self.messages.next().map(|msg| {
             let id = msg.header.id;
             let result = self.server.consume(msg);
-            if result.is_ok() {
+            // Check for existence first before insertion to avoid unnecessary allocation.
+            if result.is_ok() && !self.ids.contains(id) {
                 self.ids.insert(id.to_owned());
             }
             result
