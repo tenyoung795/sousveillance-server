@@ -9,17 +9,17 @@ use byteorder::{BigEndian, ByteOrder};
 pub enum Part {
     TokenSize,
     Token(u32),
-    IDSize,
-    ID(u32),
+    IdSize,
+    Id(u32),
     Timestamp,
 }
 
 impl Part {
     fn size(&self) -> u32 {
         match *self {
-            Part::TokenSize | Part::IDSize => 4,
+            Part::TokenSize | Part::IdSize => 4,
             Part::Token(s) => s,
-            Part::ID(s) => s,
+            Part::Id(s) => s,
             Part::Timestamp => 8,
         }
     }
@@ -28,8 +28,8 @@ impl Part {
         match *self {
             Part::TokenSize => "token size",
             Part::Token(_) => "token",
-            Part::IDSize => "ID size",
-            Part::ID(_) => "ID",
+            Part::IdSize => "Id size",
+            Part::Id(_) => "Id",
             Part::Timestamp => "timestamp",
         }
     }
@@ -63,8 +63,8 @@ impl error::Error for Error {
         match self.part {
             Part::TokenSize => "missing token size",
             Part::Token(_) => "missing token",
-            Part::IDSize => "missing ID size",
-            Part::ID(_) => "missing ID",
+            Part::IdSize => "missing Id size",
+            Part::Id(_) => "missing Id",
             Part::Timestamp => "missing timestamp",
         }
     }
@@ -89,11 +89,11 @@ impl<'a> Header<'a> {
         let token = &bytes[..token_size as usize];
         bytes = &bytes[token_size as usize..];
 
-        try!(check(Part::IDSize));
+        try!(check(Part::IdSize));
         let id_size = BigEndian::read_u32(bytes);
         bytes = &bytes[4..];
 
-        try!(check(Part::ID(id_size)));
+        try!(check(Part::Id(id_size)));
         let id = &bytes[..id_size as usize];
         bytes = &bytes[id_size as usize..];
 
@@ -178,7 +178,7 @@ mod tests {
             .collect();
         Header::parse(&buf) == Err(Error {
             remaining: 0,
-            part: Part::IDSize,
+            part: Part::IdSize,
         })
     }}
 
@@ -192,7 +192,7 @@ mod tests {
             .collect();
         Header::parse(&buf) == Err(Error {
             remaining: 1,
-            part: Part::IDSize,
+            part: Part::IdSize,
         })
     }}
 
@@ -206,7 +206,7 @@ mod tests {
             .collect();
         Header::parse(&buf) == Err(Error {
             remaining: 2,
-            part: Part::IDSize,
+            part: Part::IdSize,
         })
     }}
 
@@ -221,7 +221,7 @@ mod tests {
             .collect();
         Header::parse(&buf) == Err(Error {
             remaining: 3,
-            part: Part::IDSize,
+            part: Part::IdSize,
         })
     }}
 
@@ -240,7 +240,7 @@ mod tests {
                 return TestResult::from_bool(
                     Header::parse(&buf) == Err(Error {
                         remaining: remaining,
-                        part: Part::ID(id_size),
+                        part: Part::Id(id_size),
                     }));
             }
         }

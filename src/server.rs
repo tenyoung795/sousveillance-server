@@ -45,7 +45,7 @@ impl<E: error::Error> error::Error for AuthError<E> {
 #[derive(Debug)]
 pub enum ConsumeError<A, P> {
     Auth(AuthError<A>),
-    MissingID,
+    MissingId,
     Push(P),
 }
 
@@ -59,7 +59,7 @@ impl<A: Display, P: Display> Display for ConsumeError<A, P> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
         match *self {
             ConsumeError::Auth(ref e) => e.fmt(f),
-            ConsumeError::MissingID => f.write_str("missing ID"),
+            ConsumeError::MissingId => f.write_str("missing ID"),
             ConsumeError::Push(ref e) => e.fmt(f),
         }
     }
@@ -69,7 +69,7 @@ impl<A: error::Error, P: error::Error> error::Error for ConsumeError<A, P> {
     fn description(&self) -> &str {
         match *self {
             ConsumeError::Auth(ref e) => e.description(),
-            ConsumeError::MissingID => "missing ID",
+            ConsumeError::MissingId => "missing ID",
             ConsumeError::Push(ref e) => e.description(),
         }
     }
@@ -77,7 +77,7 @@ impl<A: error::Error, P: error::Error> error::Error for ConsumeError<A, P> {
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             ConsumeError::Auth(ref e) => Some(e),
-            ConsumeError::MissingID => None,
+            ConsumeError::MissingId => None,
             ConsumeError::Push(ref e) => Some(e),
         }
     }
@@ -97,7 +97,7 @@ pub trait Server {
                -> ConsumeResult<Self::AuthErr, <Self::Stream as Stream>::PushErr> {
         self.auth(msg.header.token)
             .map_err(Into::into)
-            .and_then(|finder| finder.get_mut(msg.header.id).ok_or(ConsumeError::MissingID))
+            .and_then(|finder| finder.get_mut(msg.header.id).ok_or(ConsumeError::MissingId))
             .and_then(move |stream| {
                 stream.push(msg.header.timestamp, msg.payload).map_err(ConsumeError::Push)
             })
@@ -197,7 +197,7 @@ mod tests {
             payload: &*payload,
         };
         let finder: Finder<stream::mocks::Impossible> = Finder::new();
-        test_result_match!(Err(ConsumeError::MissingID), mocks::Ok(finder).consume(msg))
+        test_result_match!(Err(ConsumeError::MissingId), mocks::Ok(finder).consume(msg))
     }}
 
     quickcheck_test! {
