@@ -1,10 +1,9 @@
+use byteorder::{BigEndian, ByteOrder};
 use std::io;
 use std::io::prelude::*;
 use std::mem::uninitialized;
 
-use byteorder::{BigEndian, ByteOrder};
-
-use super::{message, server, Message, Server, Stream};
+use {message, server, Message, Server, Stream};
 
 pub struct Session<'a, S: 'a, R> {
     server: &'a mut S,

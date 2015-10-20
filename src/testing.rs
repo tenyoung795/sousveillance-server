@@ -1,4 +1,5 @@
 use byteorder::{BigEndian, ByteOrder};
+
 pub use quickcheck::*;
 
 pub trait ToBytes {

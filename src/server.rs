@@ -3,7 +3,7 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::error;
 
-use super::{Stream, Message};
+use {Stream, Message};
 
 #[derive(Debug)]
 pub enum AuthError<E> {

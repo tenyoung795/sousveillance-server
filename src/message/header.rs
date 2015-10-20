@@ -1,9 +1,8 @@
+use byteorder::{BigEndian, ByteOrder};
 use std::error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
-
-use byteorder::{BigEndian, ByteOrder};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Part {

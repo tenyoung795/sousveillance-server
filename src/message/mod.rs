@@ -1,7 +1,7 @@
-pub mod header;
-
 pub use self::header::Header;
 pub use self::header::Error;
+
+pub mod header;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Message<'a> {
