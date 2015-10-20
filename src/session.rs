@@ -109,7 +109,7 @@ mod tests {
     use std::io::Cursor;
 
     use super::*;
-    use super::super::{server, stream};
+    use {server, stream};
     use testing::*;
 
     #[derive(Clone, Debug, Default)]
