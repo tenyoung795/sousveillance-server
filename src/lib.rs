@@ -1,10 +1,10 @@
 extern crate byteorder;
-
 #[cfg(test)]
 extern crate quickcheck;
 
+#[cfg(test)]
 #[macro_use]
-mod macros;
+mod testing;
 
 pub mod message;
 pub mod server;

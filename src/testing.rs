@@ -1,15 +1,39 @@
-#[macro_export]
-macro_rules! matches {
-    ($e:expr, $p:pat) => {
-        if let $p = $e {
-            true
-        } else {
-            false
-        }
-    };
+use byteorder::{BigEndian, ByteOrder};
+pub use quickcheck::*;
+
+pub trait ToBytes {
+    type Bytes;
+    fn to_bytes(self) -> Self::Bytes;
 }
 
-#[cfg(test)]
+impl ToBytes for u32 {
+    type Bytes = [u8; 4];
+    fn to_bytes(self) -> Self::Bytes {
+        let mut bytes = [0_u8; 4];
+        BigEndian::write_u32(&mut bytes, self);
+        bytes
+    }
+}
+
+impl ToBytes for u64 {
+    type Bytes = [u8; 8];
+    fn to_bytes(self) -> Self::Bytes {
+        let mut bytes = [0_u8; 8];
+        BigEndian::write_u64(&mut bytes, self);
+        bytes
+    }
+}
+
+pub trait IntoCopyIterator: IntoIterator {
+    fn into_copy_iter(self) -> ::std::iter::Cloned<Self::IntoIter>;
+}
+
+impl<'a, T: 'a + Copy, I: IntoIterator<Item=&'a T>> IntoCopyIterator for I {
+    fn into_copy_iter(self) -> ::std::iter::Cloned<Self::IntoIter> {
+        self.into_iter().cloned()
+    }
+}
+
 #[macro_export]
 macro_rules! quickcheck_test {
     ($test_name:ident ($($param_name:ident: $param_type:ty),+; $return_type:ty)
@@ -24,7 +48,6 @@ macro_rules! quickcheck_test {
     };
 }
 
-#[cfg(test)]
 #[macro_export]
 macro_rules! assert_match {
     ($p:pat, $e:expr) => {
@@ -44,7 +67,6 @@ macro_rules! assert_match {
     };
 }
 
-#[cfg(test)]
 #[macro_export]
 macro_rules! test_result_match {
     ($p:pat, $e:expr) => {

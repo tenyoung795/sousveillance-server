@@ -108,11 +108,9 @@ mod tests {
     use std::io::prelude::*;
     use std::io::Cursor;
 
-    use quickcheck::*;
-
     use super::*;
     use super::super::{server, stream};
-    use ::util::testing::*;
+    use testing::*;
 
     #[derive(Clone, Debug, Default)]
     struct Packet {

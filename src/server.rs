@@ -153,10 +153,11 @@ mod tests {
 
     use super::*;
     use super::super::{message, stream, Message};
+    use testing::*;
 
     quickcheck_test! {
     missing_token(token: Vec<u8>, id: Vec<u8>, millis: u64, payload: Vec<u8>;
-                  bool) {
+                  TestResult) {
         let msg = Message {
             header: message::Header {
                 token: &token,
@@ -165,13 +166,13 @@ mod tests {
             },
             payload: &*payload,
         };
-        matches!(mocks::RefuseToAuth.consume(msg),
-                 Err(ConsumeError::Auth(AuthError::InvalidToken)))
+        test_result_match!(Err(ConsumeError::Auth(AuthError::InvalidToken)),
+                           mocks::RefuseToAuth.consume(msg))
     }}
 
     quickcheck_test! {
     other_auth_error(token: Vec<u8>, id: Vec<u8>, millis: u64, payload: Vec<u8>;
-                     bool) {
+                     TestResult) {
         let msg = Message {
             header: message::Header {
                 token: &token,
@@ -180,13 +181,13 @@ mod tests {
             },
             payload: &*payload,
         };
-        matches!(mocks::CannotAuth.consume(msg),
-                 Err(ConsumeError::Auth(AuthError::Other(_))))
+        test_result_match!(Err(ConsumeError::Auth(AuthError::Other(_))),
+                           mocks::CannotAuth.consume(msg))
     }}
 
     quickcheck_test! {
     missing_id(token: Vec<u8>, id: Vec<u8>, millis: u64, payload: Vec<u8>;
-               bool) {
+               TestResult) {
         let msg = Message {
             header: message::Header {
                 token: &token,
@@ -196,12 +197,12 @@ mod tests {
             payload: &*payload,
         };
         let finder: Finder<stream::mocks::Impossible> = Finder::new();
-        matches!(mocks::Ok(finder).consume(msg), Err(ConsumeError::MissingID))
+        test_result_match!(Err(ConsumeError::MissingID), mocks::Ok(finder).consume(msg))
     }}
 
     quickcheck_test! {
     push_error(token: Vec<u8>, id: Vec<u8>, millis: u64, payload: Vec<u8>;
-               bool) {
+               TestResult) {
         let finder: Finder<_> = iter::once(
             (id.clone(), stream::mocks::Broken)).collect();
         let msg = Message {
@@ -212,12 +213,12 @@ mod tests {
             },
             payload: &*payload,
         };
-        matches!(mocks::Ok(finder).consume(msg), Err(ConsumeError::Push(_)))
+        test_result_match!(Err(ConsumeError::Push(_)), mocks::Ok(finder).consume(msg))
     }}
 
     quickcheck_test! {
     ok_consume(token: Vec<u8>, id: Vec<u8>, millis: u64, payload: Vec<u8>;
-               bool) {
+               TestResult) {
         let finder: Finder<_> = iter::once(
             (id.clone(), stream::mocks::Ok)).collect();
         let msg = Message {
@@ -228,6 +229,6 @@ mod tests {
             },
             payload: &*payload,
         };
-        mocks::Ok(finder).consume(msg).is_ok()
+        test_result_match!(Ok(_), mocks::Ok(finder).consume(msg))
     }}
 }

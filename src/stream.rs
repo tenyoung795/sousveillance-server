@@ -57,7 +57,7 @@ pub mod mocks {
         }
     }
 
-    #[derive(Default)]
+    #[derive(Debug, Default)]
     pub struct Broken;
     impl Stream for Broken {
         type PushErr = ();
@@ -72,7 +72,7 @@ pub mod mocks {
         }
     }
 
-    #[derive(Default)]
+    #[derive(Debug, Default)]
     pub struct Ok;
     impl Stream for Ok {
         type PushErr = ::Void;
@@ -92,9 +92,8 @@ pub mod mocks {
 mod tests {
     use std::collections::{HashMap, HashSet};
 
-    use ::quickcheck::*;
-
     use super::*;
+    use testing::*;
 
     quickcheck_test! {
     missing_id(missing_id: Vec<u8>, present_ids: HashSet<Vec<u8>>; TestResult) {
@@ -104,24 +103,24 @@ mod tests {
             let mut streams: HashMap<_, _> = present_ids.into_iter()
                 .map(|id| (id, mocks::Ok))
                 .collect();
-            TestResult::from_bool(streams.extract(&missing_id).is_none())
+            test_result_match!(None, streams.extract(&missing_id))
         }
     }}
 
     quickcheck_test! {
-    extract_error(id_to_lookup: Vec<u8>, other_ids: HashSet<Vec<u8>>; bool) {
+    extract_error(id_to_lookup: Vec<u8>, other_ids: HashSet<Vec<u8>>; TestResult) {
         let mut ids = other_ids;
         ids.insert(id_to_lookup.clone());
 
         let mut streams: HashMap<_, _> = ids.into_iter()
             .map(|id| (id, mocks::Broken))
             .collect();
-        matches!(streams.extract(&id_to_lookup), Some(Err(_)))
+        test_result_match!(Some(Err(_)), streams.extract(&id_to_lookup))
     }}
 
     quickcheck_test! {
     extract_error_reinserts(id_to_lookup: Vec<u8>, other_ids: HashSet<Vec<u8>>;
-                            bool) {
+                            TestResult) {
         let mut ids = other_ids;
         ids.insert(id_to_lookup.clone());
 
@@ -129,22 +128,22 @@ mod tests {
             .map(|id| (id, mocks::Broken))
             .collect();
         streams.extract(&id_to_lookup);
-        matches!(streams.get(&id_to_lookup), Some(&mocks::Broken))
+        test_result_match!(Some(&mocks::Broken), streams.get(&id_to_lookup))
     }}
 
     quickcheck_test! {
-    extract_ok(id_to_lookup: Vec<u8>, other_ids: HashSet<Vec<u8>>; bool) {
+    extract_ok(id_to_lookup: Vec<u8>, other_ids: HashSet<Vec<u8>>; TestResult) {
         let mut ids = other_ids;
         ids.insert(id_to_lookup.clone());
 
         let mut streams: HashMap<_, _> = ids.into_iter()
             .map(|id| (id, mocks::Ok))
             .collect();
-        matches!(streams.extract(&id_to_lookup), Some(Ok(_)))
+        test_result_match!(Some(Ok(_)), streams.extract(&id_to_lookup))
     }}
 
     quickcheck_test! {
-    extract_ok_removes(id_to_lookup: Vec<u8>, other_ids: HashSet<Vec<u8>>; bool) {
+    extract_ok_removes(id_to_lookup: Vec<u8>, other_ids: HashSet<Vec<u8>>; TestResult) {
         let mut ids = other_ids;
         ids.insert(id_to_lookup.clone());
 
@@ -152,6 +151,6 @@ mod tests {
             .map(|id| (id, mocks::Ok))
             .collect();
         streams.extract(&id_to_lookup);
-        streams.get(&id_to_lookup).is_none()
+        test_result_match!(None, streams.get(&id_to_lookup))
     }}
 }

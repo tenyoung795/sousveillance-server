@@ -114,10 +114,8 @@ impl<'a> Header<'a> {
 mod tests {
     use std::time::Duration;
 
-    use ::quickcheck::*;
-
     use super::*;
-    use ::util::testing::*;
+    use testing::*;
 
     #[test]
     fn none_of_token_size() {
