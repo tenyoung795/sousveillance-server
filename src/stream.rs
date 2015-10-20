@@ -1,25 +1,25 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-pub trait Stream<T> : Default {
+pub trait Stream: Default {
     type PushErr;
-    fn push(&mut self, Duration, T) -> Result<(), Self::PushErr>;
+    fn push(&mut self, Duration, &[u8]) -> Result<(), Self::PushErr>;
 
     type Extract;
     type ExtractErr;
     fn extract(self) -> Result<Self::Extract, (Self, Self::ExtractErr)>;
 }
 
-pub type FoundResult<T, S> = Result<
-    <S as Stream<T>>::Extract, <S as Stream<T>>::ExtractErr>;
-pub trait Finder<T> {
-    type Stream: Stream<T>;
-    fn extract(&mut self, &[u8]) -> Option<FoundResult<T, Self::Stream>>;
+pub type FoundResult<S> = Result<
+    <S as Stream>::Extract, <S as Stream>::ExtractErr>;
+pub trait Finder {
+    type Stream: Stream;
+    fn extract(&mut self, &[u8]) -> Option<FoundResult<Self::Stream>>;
 }
 
-impl<T, V: Stream<T>> Finder<T> for HashMap<Vec<u8>, V> {
+impl<V: Stream> Finder for HashMap<Vec<u8>, V> {
     type Stream = V;
-    fn extract(&mut self, key: &[u8]) -> Option<FoundResult<T, Self::Stream>> {
+    fn extract(&mut self, key: &[u8]) -> Option<FoundResult<Self::Stream>> {
         self.remove(key)
             .map(V::extract)
             .map(|result| {
@@ -44,9 +44,9 @@ pub mod mocks {
             unreachable!()
         }
     }
-    impl<T> Stream<T> for Impossible {
+    impl Stream for Impossible {
         type PushErr = ::Void;
-        fn push(&mut self, _: Duration, _: T) -> Result<(), Self::PushErr> {
+        fn push(&mut self, _: Duration, _: &[u8]) -> Result<(), Self::PushErr> {
             match *self { }
         }
 
@@ -59,9 +59,9 @@ pub mod mocks {
 
     #[derive(Default)]
     pub struct Broken;
-    impl<T> Stream<T> for Broken {
+    impl Stream for Broken {
         type PushErr = ();
-        fn push(&mut self, _: Duration, _: T) -> Result<(), Self::PushErr> {
+        fn push(&mut self, _: Duration, _: &[u8]) -> Result<(), Self::PushErr> {
             Err(())
         }
 
@@ -74,9 +74,9 @@ pub mod mocks {
 
     #[derive(Default)]
     pub struct Ok;
-    impl<T> Stream<T> for Ok {
+    impl Stream for Ok {
         type PushErr = ::Void;
-        fn push(&mut self, _: Duration, _: T) -> Result<(), Self::PushErr> {
+        fn push(&mut self, _: Duration, _: &[u8]) -> Result<(), Self::PushErr> {
             Result::Ok(())
         }
 
@@ -104,8 +104,7 @@ mod tests {
             let mut streams: HashMap<_, _> = present_ids.into_iter()
                 .map(|id| (id, mocks::Ok))
                 .collect();
-            let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Ok>;
-            TestResult::from_bool(finder.extract(&missing_id).is_none())
+            TestResult::from_bool(streams.extract(&missing_id).is_none())
         }
     }}
 
@@ -117,8 +116,7 @@ mod tests {
         let mut streams: HashMap<_, _> = ids.into_iter()
             .map(|id| (id, mocks::Broken))
             .collect();
-        let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Broken>;
-        matches!(finder.extract(&id_to_lookup), Some(Err(_)))
+        matches!(streams.extract(&id_to_lookup), Some(Err(_)))
     }}
 
     quickcheck_test! {
@@ -130,10 +128,7 @@ mod tests {
         let mut streams: HashMap<_, _> = ids.into_iter()
             .map(|id| (id, mocks::Broken))
             .collect();
-        {
-            let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Broken>;
-            finder.extract(&id_to_lookup);
-        }
+        streams.extract(&id_to_lookup);
         matches!(streams.get(&id_to_lookup), Some(&mocks::Broken))
     }}
 
@@ -145,8 +140,7 @@ mod tests {
         let mut streams: HashMap<_, _> = ids.into_iter()
             .map(|id| (id, mocks::Ok))
             .collect();
-        let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Ok>;
-        matches!(finder.extract(&id_to_lookup), Some(Ok(_)))
+        matches!(streams.extract(&id_to_lookup), Some(Ok(_)))
     }}
 
     quickcheck_test! {
@@ -157,10 +151,7 @@ mod tests {
         let mut streams: HashMap<_, _> = ids.into_iter()
             .map(|id| (id, mocks::Ok))
             .collect();
-        {
-            let finder = &mut streams as &mut Finder<::Void, Stream=mocks::Ok>;
-            finder.extract(&id_to_lookup);
-        }
+        streams.extract(&id_to_lookup);
         streams.get(&id_to_lookup).is_none()
     }}
 }

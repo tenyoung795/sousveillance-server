@@ -23,3 +23,43 @@ macro_rules! quickcheck_test {
         }
     };
 }
+
+#[cfg(test)]
+#[macro_export]
+macro_rules! assert_match {
+    ($p:pat, $e:expr) => {
+        match $e {
+            $p => {},
+            bad => panic!("assertion failed: expected {}; got {:?}", stringify!($p), bad),
+        }
+    };
+    ($p:pat if $c:expr, $e:expr) => {
+        match $e {
+            $p if $c => {},
+            bad => panic!("assertion failed: expected {} if {}; got {:?}",
+                          stringify!($p),
+                          stringify!($c),
+                          bad),
+        }
+    };
+}
+
+#[cfg(test)]
+#[macro_export]
+macro_rules! test_result_match {
+    ($p:pat, $e:expr) => {
+        match $e {
+            $p => ::quickcheck::TestResult::passed(),
+            bad => ::quickcheck::TestResult::error(
+                format!("expected {}; got {:?}", stringify!($p), bad)),
+        }
+    };
+    ($p:pat if $c:expr, $e:expr) => {
+        match $e {
+            $p if $c => ::quickcheck::TestResult::passed(),
+            bad => ::quickcheck::TestResult::error(
+                format!("expected {} if {}; got {:?}",
+                        stringify!($p), stringify!($c), bad)),
+        }
+    }
+}

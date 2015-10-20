@@ -86,15 +86,15 @@ impl<A: error::Error, P: error::Error> error::Error for ConsumeError<A, P> {
 pub type Finder<S> = HashMap<Vec<u8>, S>;
 pub type AuthResult<'a, S, A> = Result<&'a mut Finder<S>, AuthError<A>>;
 pub type ConsumeResult<A, P> = Result<(), ConsumeError<A, P>>;
-pub trait Server<T> {
-    type Stream: Stream<T>;
+pub trait Server {
+    type Stream: Stream;
 
     type AuthErr;
     fn auth(&mut self, token: &[u8]) -> AuthResult<Self::Stream, Self::AuthErr>;
 
     fn consume(&mut self,
-               msg: Message<T>)
-               -> ConsumeResult<Self::AuthErr, <Self::Stream as Stream<T>>::PushErr> {
+               msg: Message)
+               -> ConsumeResult<Self::AuthErr, <Self::Stream as Stream>::PushErr> {
         self.auth(msg.header.token)
             .map_err(Into::into)
             .and_then(|finder| finder.get_mut(msg.header.id).ok_or(ConsumeError::MissingID))
@@ -109,8 +109,17 @@ pub mod mocks {
     use super::*;
     use super::super::{stream, Stream};
 
+    pub struct Unreachable;
+    impl Server for Unreachable {
+        type Stream = stream::mocks::Impossible;
+        type AuthErr = ::Void;
+        fn auth(&mut self, _: &[u8]) -> AuthResult<Self::Stream, Self::AuthErr> {
+            unreachable!();
+        }
+    }
+
     pub struct RefuseToAuth;
-    impl<T> Server<T> for RefuseToAuth {
+    impl Server for RefuseToAuth {
         type Stream = stream::mocks::Impossible;
         type AuthErr = ::Void;
         fn auth(&mut self, _: &[u8]) -> AuthResult<Self::Stream, Self::AuthErr> {
@@ -119,7 +128,7 @@ pub mod mocks {
     }
 
     pub struct CannotAuth;
-    impl<T> Server<T> for CannotAuth {
+    impl Server for CannotAuth {
         type Stream = stream::mocks::Impossible;
         type AuthErr = ();
         fn auth(&mut self, _: &[u8]) -> AuthResult<Self::Stream, Self::AuthErr> {
@@ -128,7 +137,7 @@ pub mod mocks {
     }
 
     pub struct Ok<S>(pub Finder<S>);
-    impl<T, S: Stream<T>> Server<T> for Ok<S> {
+    impl<S: Stream> Server for Ok<S> {
         type Stream = S;
         type AuthErr = ::Void;
         fn auth(&mut self, _: &[u8]) -> AuthResult<Self::Stream, Self::AuthErr> {

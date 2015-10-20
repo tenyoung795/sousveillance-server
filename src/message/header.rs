@@ -15,11 +15,11 @@ pub enum Part {
 }
 
 impl Part {
-    fn size(&self) -> usize {
+    fn size(&self) -> u32 {
         match *self {
             Part::TokenSize | Part::IDSize => 4,
-            Part::Token(s) => s as usize,
-            Part::ID(s) => s as usize,
+            Part::Token(s) => s,
+            Part::ID(s) => s,
             Part::Timestamp => 8,
         }
     }
@@ -44,7 +44,7 @@ pub struct Header<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Error {
-    pub remaining: usize,
+    pub remaining: u32,
     pub part: Part,
 }
 
@@ -72,7 +72,7 @@ impl error::Error for Error {
 
 impl<'a> Header<'a> {
     pub fn parse(mut bytes: &'a [u8]) -> Result<(Self, &'a [u8]), Error> {
-        let mut remaining = bytes.len();
+        let mut remaining = bytes.len() as u32;
         let mut check = |part: Part| {
             remaining = try!(remaining.checked_sub(part.size()).ok_or(Error {
                 remaining: remaining,
@@ -154,18 +154,17 @@ mod tests {
 
     quickcheck_test! {
     partial_token(partial_token: Vec<u8>, needed: u32; TestResult) {
-        let remaining = partial_token.len();
+        let remaining = partial_token.len() as u32;
         if needed > 0 {
-            if let Some(token_size) = remaining.checked_add(needed as usize) {
-                let buf: Vec<_> = (token_size as u32)
-                    .to_bytes()
+            if let Some(token_size) = remaining.checked_add(needed) {
+                let buf: Vec<_> = token_size.to_bytes()
                     .into_copy_iter()
                     .chain(partial_token)
                     .collect();
                 return TestResult::from_bool(
                     Header::parse(&buf) == Err(Error {
                         remaining: remaining,
-                        part: Part::Token(token_size as u32),
+                        part: Part::Token(token_size),
                     }));
             }
         }
@@ -230,9 +229,9 @@ mod tests {
 
     quickcheck_test! {
     partial_id(token: Vec<u8>, partial_id: Vec<u8>, needed: u32; TestResult) {
-        let remaining = partial_id.len();
+        let remaining = partial_id.len() as u32;
         if needed > 0 {
-            if let Some(id_size) = remaining.checked_add(needed as usize) {
+            if let Some(id_size) = remaining.checked_add(needed) {
                 let buf: Vec<_> = (token.len() as u32)
                     .to_bytes()
                     .into_copy_iter()
@@ -243,7 +242,7 @@ mod tests {
                 return TestResult::from_bool(
                     Header::parse(&buf) == Err(Error {
                         remaining: remaining,
-                        part: Part::ID(id_size as u32),
+                        part: Part::ID(id_size),
                     }));
             }
         }
