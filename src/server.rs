@@ -107,7 +107,7 @@ pub trait Server {
 #[cfg(test)]
 pub mod mocks {
     use super::*;
-    use super::super::{stream, Stream};
+    use {stream, Stream};
 
     pub struct Unreachable;
     impl Server for Unreachable {
