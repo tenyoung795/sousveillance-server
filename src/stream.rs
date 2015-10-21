@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-pub trait Stream: Default {
+pub trait Stream {
     type PushErr;
     fn push(&mut self, Duration, &[u8]) -> Result<(), Self::PushErr>;
 
