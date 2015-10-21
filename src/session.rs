@@ -1,7 +1,7 @@
 use byteorder::{BigEndian, ByteOrder};
 use std::io;
 use std::io::prelude::*;
-use std::mem::uninitialized;
+use std::mem;
 
 use {message, server, Message, Server, Stream};
 
@@ -59,7 +59,7 @@ impl<'a, S: 'a + Server, R: Read> Iterator for Session<'a, S, R> {
         Vec<u8>,
         Error<S::AuthErr, <S::Stream as Stream>::PushErr>>;
     fn next(&mut self) -> Option<Self::Item> {
-        let mut bytes: [u8; 4] = unsafe { uninitialized() };
+        let mut bytes: [u8; 4] = unsafe { mem::uninitialized() };
         match self.reader.read(&mut bytes) {
             Err(e) => Some(Err(e.into())),
             Ok(n) => match n {
