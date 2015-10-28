@@ -25,12 +25,9 @@ impl<'a, S: 'a , R> Session<'a, S, R> {
 pub enum Error<A, P> {
     Read(io::Error),
     OneByteMessageSize,
-    TwoByteMessageSize,
-    ThreeByteMessageSize,
-    TooBig(u32),
     Truncated {
-        found: u32,
-        remaining: u32,
+        found: u16,
+        remaining: u16,
     },
     Parse(message::Error),
     Consume(server::ConsumeError<A, P>),
@@ -59,16 +56,14 @@ impl<'a, S: 'a + Server, R: Read> Iterator for Session<'a, S, R> {
         Vec<u8>,
         Error<S::AuthErr, <S::Stream as Stream>::PushErr>>;
     fn next(&mut self) -> Option<Self::Item> {
-        let mut bytes: [u8; 4] = unsafe { mem::uninitialized() };
+        let mut bytes: [u8; 2] = unsafe { mem::uninitialized() };
         match self.reader.read(&mut bytes) {
             Err(e) => Some(Err(e.into())),
             Ok(n) => match n {
                 0 => None,
                 1 => Some(Err(Error::OneByteMessageSize)),
-                2 => Some(Err(Error::TwoByteMessageSize)),
-                3 => Some(Err(Error::ThreeByteMessageSize)),
-                4 => Some({
-                    let size = BigEndian::read_u32(&bytes) as usize;
+                2 => Some({
+                    let size = BigEndian::read_u16(&bytes) as usize;
                     if let Some(additional) = size.checked_sub(self.buffer.len()) {
                         self.buffer.reserve(additional);
                     }
@@ -78,8 +73,8 @@ impl<'a, S: 'a + Server, R: Read> Iterator for Session<'a, S, R> {
                     match self.reader.read(&mut self.buffer) {
                         Err(e) => Err(e.into()),
                         Ok(found) if found < size => Err(Error::Truncated {
-                            found: found as u32,
-                            remaining: (size - found) as u32,
+                            found: found as u16,
+                            remaining: (size - found) as u16,
                         }),
                         Ok(n) if n == size => {
                             let server = &mut *self.server;
@@ -95,7 +90,7 @@ impl<'a, S: 'a + Server, R: Read> Iterator for Session<'a, S, R> {
                         Ok(n) => unreachable!("{} should be <= {}", n, size),
                     }
                 }),
-                n => unreachable!("{} should be <= 4", n),
+                n => unreachable!("{} should be <= 2", n),
             },
         }
     }
@@ -120,16 +115,16 @@ mod tests {
     }
     impl Packet {
         fn into_bytes(self) -> Vec<u8> {
-            let msg: Vec<_> = (self.token.len() as u32)
+            let msg: Vec<_> = (self.token.len() as u16)
                                   .to_bytes()
                                   .into_copy_iter()
                                   .chain(self.token)
-                                  .chain((self.id.len() as u32).to_bytes().into_copy_iter())
+                                  .chain((self.id.len() as u16).to_bytes().into_copy_iter())
                                   .chain(self.id)
                                   .chain(self.millis.to_bytes().into_copy_iter())
                                   .chain(self.payload)
                                   .collect();
-            (msg.len() as u32)
+            (msg.len() as u16)
                 .to_bytes()
                 .into_copy_iter()
                 .chain(msg)
@@ -192,28 +187,12 @@ mod tests {
     }}
 
     quickcheck_test! {
-    next_some_err_two_byte_message_size(a: u8, b: u8; TestResult) {
-        let mut server = server::mocks::Unreachable;
-        let packet = [a, b];
-        let mut session = Session::new(&mut server, &packet as &[_]);
-        test_result_match!(Some(Err(Error::TwoByteMessageSize)), session.next())
-    }}
-
-    quickcheck_test! {
-    next_some_err_three_byte_message_size(a: u8, b: u8, c: u8; TestResult) {
-        let mut server = server::mocks::Unreachable;
-        let packet = [a, b, c];
-        let mut session = Session::new(&mut server, &packet as &[_]);
-        test_result_match!(Some(Err(Error::ThreeByteMessageSize)), session.next())
-    }}
-
-    quickcheck_test! {
-    next_some_err_truncated(partial_message: Vec<u8>, expected_remaining: u32; TestResult) {
+    next_some_err_truncated(partial_message: Vec<u8>, expected_remaining: u16; TestResult) {
         if expected_remaining == 0 {
             return TestResult::discard();
         }
 
-        let expected_found = partial_message.len() as u32;
+        let expected_found = partial_message.len() as u16;
         if let Some(n) = expected_found.checked_add(expected_remaining) {
             let mut server = server::mocks::Unreachable;
             let len_bytes = &n.to_bytes();
@@ -229,19 +208,19 @@ mod tests {
     }}
 
     quickcheck_test! {
-    next_some_err_parse(partial_token: Vec<u8>, missing: u32; TestResult) {
+    next_some_err_parse(partial_token: Vec<u8>, missing: u16; TestResult) {
         if missing == 0 {
             return TestResult::discard();
         }
 
-        let found = partial_token.len() as u32;
+        let found = partial_token.len() as u16;
         if let Some(token_len) = found.checked_add(missing) {
             let mut server = server::mocks::Unreachable;
             let msg: Vec<_> = token_len.to_bytes()
                 .into_copy_iter()
                 .chain(partial_token)
                 .collect();
-            let msg_len = &(msg.len() as u32).to_bytes();
+            let msg_len = &(msg.len() as u16).to_bytes();
             let packet = msg_len.chain(Cursor::new(msg));
             let mut session = Session::new(&mut server, packet);
             test_result_match!(Some(Err(Error::Parse(_))), session.next())

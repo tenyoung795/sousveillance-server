@@ -7,11 +7,11 @@ pub trait ToBytes {
     fn to_bytes(self) -> Self::Bytes;
 }
 
-impl ToBytes for u32 {
-    type Bytes = [u8; 4];
+impl ToBytes for u16 {
+    type Bytes = [u8; 2];
     fn to_bytes(self) -> Self::Bytes {
-        let mut bytes = [0_u8; 4];
-        BigEndian::write_u32(&mut bytes, self);
+        let mut bytes = [0_u8; 2];
+        BigEndian::write_u16(&mut bytes, self);
         bytes
     }
 }
