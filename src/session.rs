@@ -1,4 +1,7 @@
 use byteorder::{BigEndian, ByteOrder};
+use std::error;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 use std::io;
 use std::io::prelude::*;
 use std::mem;
@@ -48,6 +51,41 @@ impl<A, P> From<server::ConsumeError<A, P>> for Error<A, P> {
 impl<A, P> From<io::Error> for Error<A, P> {
     fn from(e: io::Error) -> Self {
         Error::Read(e)
+    }
+}
+
+impl<A: Display, P: Display> Display for Error<A, P> {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
+        match *self {
+            Error::Read(ref e) => e.fmt(f),
+            Error::OneByteMessageSize => f.write_str("one-byte message size"),
+            Error::Truncated { found, remaining } => write!(
+                f, "{} bytes of message found; {} bytes remaining",
+                found, remaining),
+            Error::Parse(ref e) => e.fmt(f),
+            Error::Consume(ref e) => e.fmt(f),
+        }
+    }
+}
+
+impl<A: error::Error, P: error::Error> error::Error for Error<A, P> {
+    fn description(&self) -> &str {
+        match *self {
+            Error::Read(ref e) => e.description(),
+            Error::OneByteMessageSize => "one-byte message size",
+            Error::Truncated { .. } => "truncated message",
+            Error::Parse(ref e) => e.description(),
+            Error::Consume(ref e) => e.description(),
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            Error::Read(ref e) => Some(e),
+            Error::Parse(ref e) => Some(e),
+            Error::Consume(ref e) => Some(e),
+            _ => None,
+        }
     }
 }
 
