@@ -1,7 +1,7 @@
 use std::collections::HashMap;
+use std::error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::error;
 
 use {Stream, Message};
 
