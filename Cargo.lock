@@ -29,24 +29,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "ffmpeg"
 version = "0.1.1"
-source = "git+https://github.com/meh/rust-ffmpeg.git#8b6e41f68c3d02d4b95133c52ebaf5f2b7549170"
+source = "git+https://github.com/meh/rust-ffmpeg.git#67009f0f1749ecb58f18634cc4279f4a21c09ea9"
 dependencies = [
  "bitflags 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ffmpeg-sys 2.8.0-4 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ffmpeg-sys 2.8.0-5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "ffmpeg-sys"
-version = "2.8.0-4"
+version = "2.8.0-5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "libc"
 version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "libc"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
